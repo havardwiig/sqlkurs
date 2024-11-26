@@ -5,6 +5,7 @@
 
 ## HURTIGTASTER CLI
 
+| Shortcut | Description |
 |:-------|:--------                |
 | CTRL-A | Go to beginning of line |
 | CTRL-E | Go to end of line       |

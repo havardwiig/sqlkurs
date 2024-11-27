@@ -1,0 +1,472 @@
+---
+title: SQL-kurs
+date: "2024-11-26"
+author: "Digital utvikling"
+format:
+  revealjs:
+    theme: night
+    embed-resources: true
+    fontsize: 1.5em
+    logo: "SE_LOGO.jpg"
+    width: 500
+    height: 800
+output-file: "SQL-kurs.html"
+---
+
+## SQL
+
+* Structured Query Language
+* Spørringer mot databases/tabeller
+* Databasebehandling (IKKE MED)
+  - Schema/database
+  - Constraints: Primary/Foreign Key/NOT NULL etc.
+  - Views
+  - Optimalisering
+  - Users/secrets
+* Bruker `duckdb` som Databasebehandler
+  - Generell SQL
+  - Ikke duckdb spesifikk 
+
+## Installsjon
+
+* www.duckdb.org
+  - winget / direct download
+* datasets:
+  - starwars.csv
+  - band_members.csv
+  - band_instruments.csv
+  - band_instruments2.csv
+* putt alt i en mappe på skrivebordet
+
+## SELECT 
+
+* SELECT (lage kolonner)
+
+- 'Skagerak' AS Firma, [varchar]  
+- 2001 AS Grunnlagt, [int]
+- 2024 - Grunnlagt AS Levetid [int]
+- NB! 
+  - Kolonner får en data type
+
+. . . 
+
+```{.sql}
+SELECT
+  'Skagerak' AS Firma,
+  2001 AS Grunnlagt,
+  2024 - Grunnlagt AS Levetid
+; 
+```
+
+## CREATE TABLE
+
+- Lag tabellen `test` fra forrige SELECT
+- .tables (sjekk at den finnes)
+- Legg til `Firma || ' AS' AS Akseselskap`
+  - kan ikke lage en tabell som eksiterer
+  - `CREATE OR REPLACE TABLE`
+
+. . . 
+
+```{.sql}
+CREATE OR REPLACE TABLE test AS
+  SELECT
+    'Skagerak' AS Firma,
+    2001 AS Grunnlagt,
+    2024 - Grunnlagt AS Levetid,
+    Firma || ' AS' Akseselskap
+; 
+```
+
+## INSERT: Legg til rader med data (records)
+
+INSERT
+
+- Legge til verdier
+  - antall verdier viktig!
+- Rekkefølge på kolonnenavn (kan spesifiseres)
+- Data typer må stemme
+
+```{.sql}
+INSERT INTO test 
+  -- BY POSITION (Firma, Grunnlagt, Levetid, Aksjeselskap) 
+  VALUES ('Hafslund', 1898, 126, 'Hafslund AS');
+
+INSERT OR REPLACE INTO test ()
+  VALUES ();
+```
+
+## FROM: Velg datakilde
+
+* SELECT * (alle kolonner)
+* Spesifiser kolonnene
+* Bruk AS til å lage ALIAS
+
+```{.sql}
+SELECT * FROM test;
+SELECT
+  Firma AS Selskap, 
+  Levetid -- (NB! Ikke komma til slutt)
+FROM test; 
+```
+
+## DROP TABLE
+
+DROP
+  - Sjekk først eksisterende .tables 
+  - DROP test;
+  - CREATE på nytt (opp - CTRL-P)
+
+```{.sql}
+CREATE TABLE test2 AS SELECT * FROM test;
+DROP TABLE test;
+```
+
+## ALTER TABLE
+
+- Legg til kolonne:
+  - Navn, datatype, default-verdi
+- Gi kolonnen nytt navn
+- Fjern kolonne
+- Gi tabellen nytt navn
+
+```{.sql}
+ALTER TABLE test ADD COLUMN Production INTEGER DEFAULT NULL;
+ALTER TABLE test RENAME Production TO Prod;
+ALTER TABLE test DROP Prod;
+ALTER TABLE test RENAME TO skagerak;
+```
+
+## COPY: Eksportere tabell
+
+- Eksporter tabell til csv fil:
+  - Hele tabellen:
+  - Deler av en tabell (query: SELECT x, WHERE y etc)
+
+```{.sql}
+COPY skagerak TO 'skagerak.csv'
+COPY (
+  SELECT 
+    Firma, 
+    Levetid 
+  FROM skagerak 
+  WHERE Firma = 'Skagerak'
+) TO 'skagerak.csv'
+```
+
+## SPØRRE MOT TABELLER
+
+- Spør direkte på csv fil
+- Lag en ny tabell fra en csv fil
+- Beskriv tabell (kolonnenavn og data type)
+- Sammendrag (statistikk per kolonnenavn)
+
+```{.sql}
+SELECT * FROM 'starwars.csv';
+CREATE TABLE starwars AS SELECT * FROM 'starwars.csv';
+DESCRIBE starwars;
+SUMMARIZE starwars;
+SELECT * FROM starwars LIMIT 5;
+```
+
+## DATA TYPES
+
+- Data typer:
+  - default etter input
+  - spesifiseres
+  - endres med CAST(x AS varchar)
+  - endres med concat (||) eller regneoperasjoner
+- Alias
+  - name AS Navn
+  - CAST(height/100 AS varchar) AS height2
+
+```{.sql}
+SELECT
+  name AS Navn,
+  height AS height1,
+  CAST(height/100 AS varchar) AS height2,
+  height/100 || ' (m)' AS height3,
+  1 AS int1,
+  2 AS int2,
+  int1 / int2 AS dbl
+FROM starwars;
+```
+
+## WHERE: Filtrere rader
+
+- FROM starwars WHERE height < 100;
+- Operators: = != < > <= >= <>
+- AND
+- OR
+- NOT
+- LIKE
+
+. . .
+
+```{.sql}
+SELECT *
+FROM starwars
+WHERE height >= 100
+  AND name <> 'Yoda'
+  AND mass NOT NULL
+  AND eye_color in ('red', 'brown')
+  AND eye_color LIKE 're%'
+  AND (eye_color = 'red' OR eye_color = 'brown')
+```
+
+## DISTINCT / ORDER BY
+
+- `Hvor mange ulike species?`
+  - DISTINCT
+- Sortere med ORDER BY
+  - Kan sortere på flere kolonner
+
+```{.sql}
+SELECT DISTINCT species FROM starwars;
+SELECT DISTINCT species FROM starwars ORDER BY species;
+SELECT DISTINCT sex, species FROM starwars ORDER BY sex, species;
+```
+
+## AGGREGATE (GROUP BY)
+
+- `Hvor mange av hver species?`
+- count(\*)
+  - Grupper på x (GROUP BY sex)
+- count(DISTINCT x)
+
+. . . 
+
+```{.sql}
+SELECT
+  species,
+  count(*),
+  count(*) AS n
+FROM starwars
+GROUP BY species
+ORDER BY species;
+```
+
+```{.sql}
+SELECT 
+  species,
+  count(DISTINCT sex)
+FROM starwars
+GROUP BY species
+ORDER BY species;
+```
+
+## AGGREGATE (GROUP BY) forts...
+
+- sum, avg, stddev, min, max, etc..
+- Sett antall desimaler i resultatet CAST(X AS DESCIMAL(5,1)) 
+- NB i GROUP BY
+  - Alle kolonner i SELECT som ikke aggregeres må spesifiseres i GROUP BY
+  - Ikke alias
+- ORDER BY for finere output
+
+
+```{.sql}
+SELECT
+  sex,
+  count(*) AS n,
+  min(mass) AS min,
+  max(mass) AS max,
+  CAST(avg(mass) AS DECIMAL(3, 1)) AS mean,
+  CAST(stddev(mass) AS DECIMAL(3, 1)) AS sd
+FROM starwars
+GROUP BY sex
+ORDER BY sex;
+```
+
+## HAVING
+
+- Filtrering etter GROUP BY
+- Test ut: WHERE n > 5 (rett etter FROM)
+- Test ut: HAVING n > 5 (rett etter FROM og før GROUP BY)
+- Rekkefølge viktig?
+
+## JOIN
+
+- Sette sammen to (eller flere) tabeller ved siden av hverandre hvor en matcher verdiene i kolonne(r) i ene tabellen mot verdiene i kolonne(r) i andre tabellen 
+- Finnes mange ulike typer JOIN - som gir ulike reslutater
+- Eksakt match - 
+- 'Unequal' eller 'non-equi' JOIN
+
+```{.sql}
+CREATE bandmembers AS SELECT * FROM 'band_members.csv'; 
+CREATE bandinst1 AS SELECT * FROM 'band_instruments.csv'; 
+CREATE bandinst2 AS SELECT * FROM 'band_instruments2.csv'; 
+```
+
+## JOIN
+
+- Siden vi har to tabeller, må vi referere til tabell.kolonnenavn
+  - Kan bruke alias t1, t2.kolonnenavn
+- Test ut LEFT JOIN
+
+```{.sql}
+SELECT * FROM bandmembers;
+SELECT * FROM bandinst1;
+
+SELECT 
+  t1.*, 
+  t2.*
+FROM bandmembers t1
+LEFT JOIN bandinst1 t2 
+  ON (t1.name = t2.name);
+```
+
+- Prøv med RIGHT, INNER og FULL
+- Prøv JOIN med tabell `bandinst2`
+
+## SEMI / ANTI JOINS
+
+- Filtere tabell a basert på verdier i tabell b, kolonne x
+  - alle i tabell b (SEMI)
+  - alle **ikke** i tabell b (ANTI)
+- Trenger ikke referer til tabell
+
+```{.sql}
+SELECT *
+FROM bandmembers
+SEMI JOIN bandinst1
+  USING (name);
+```
+
+```{.sql}
+SELECT *
+FROM bandmembers
+ANTI JOIN bandinst1
+  USING (name);
+```
+
+## UNION
+
+- Sette tabeller oppå hverandre
+- UNION (kun name)
+- UNION ALL (kun name)
+
+```{.sql}
+SELECT name FROM bandmembers
+UNION
+SELECT name FROM bandinst1;
+
+SELECT name FROM bandmembers
+UNION ALL
+SELECT name FROM bandinst1;
+```
+
+## UNION forts...
+
+- SELECT * fra begge tabeller?
+- Problem?
+- UNION BY NAME 
+- eller select spesifikker kolonner 
+
+```{.sql}
+SELECT * FROM bandmembers
+UNION
+SELECT * FROM bandinst1;
+```
+
+```{.sql}
+SELECT * FROM bandmembers
+UNION BY NAME -- duckdb spesifikk
+SELECT * FROM bandinst1;
+
+SELECT
+  name, 
+  band, 
+  NULL AS plays 
+FROM bandmembers
+UNION
+SELECT
+  name, 
+  NULL AS band, 
+  plays 
+FROM bandinst1;
+```
+
+## FUNCTIONS
+
+- CASE WHEN
+- upper(name)
+
+```{.sql}
+SELECT
+  upper(name) AS name,
+  CASE
+   WHEN hair_color = 'none' THEN 'missing'
+   WHEN hair_color IS NULL THEN 'no hair'
+  ELSE hair_color END,
+FROM starwars
+LIMIT 10;
+```
+- order by strlen(name)
+
+```{.sql}
+SELECT name
+FROM starwars
+ORDER BY strlen(name);
+```
+
+- regexp_replace(x, 'regular expression', 'replacement value')
+
+## WINDOW FUNCTIONS 
+
+- Window functions
+- OVER (ORDER BY x)
+  - brukes når rekkølge er viktig (row_number, lag, first, last, etc)
+- OVER (PARTITION BY x)
+  - brukes som 'group by'
+  - sum, avg, stddev, min, max
+
+```{.sql}
+SELECT
+    row_number() OVER (ORDER BY name) AS RN,
+    name
+FROM starwars;
+```
+
+```{.sql}
+SELECT
+  name,
+  height,
+  avg(height) OVER (PARTITION by species) AS mean_height, 
+  species 
+FROM starwars;
+```
+
+## WITH
+
+- Lage en midlertidig tabell som i neste omgang kan spørres på
+- Nyttig ved komplekse spørringer
+
+```{.sql}
+WITH cte AS (
+  SELECT
+    row_number() OVER (ORDER BY NAME) AS RN,
+    name AS P1,
+    lag(name) OVER (ORDER BY NAME) AS P2,
+  FROM starwars
+)
+ 
+SELECT * 
+FROM cte
+WHERE RN % 2 = 0
+;
+```
+
+## HURTIGTASTER
+
+- CTRL-A start
+- CTRL-E end
+- CTRL-X new line
+- CTRL-P previous
+- CTRL-N next
+
+## Oppgaver
+
+- opprett en tabell med datasettet storms.csv
+- får oversikt over dataset
+- hent ut de 10 sterkeste stormene, men navn, år, og 
